@@ -6,6 +6,8 @@ import java.util.*;
  * Website <a href="https://puzzle.prodrive-technologies.com/">link</a>
  * @author Tom Meulenkamp
  * @version 1.0
+ *
+ * @deprecated
  */
 public class Puzzle {
 
@@ -106,7 +108,7 @@ public class Puzzle {
      * @return  true if holds, otherwise false.
      */
     public boolean checkEquation(int a, int b, int c, int d) {
-        return Math.abs(a - (2 * b) + c) == d;
+        return (a - (2 * b) + c == d) || (a - (2 * b) + c == -d);
     }
 
     /**
@@ -118,6 +120,7 @@ public class Puzzle {
      * @return  true if holds, otherwise false.
      */
     public static boolean isOneLine(int[] i, int[] j, int[] k, int[] l) {
+
         // Vertical or horizontal lines
         boolean sameX = i[0] == j[0] && j[0] == k[0] && k[0] == l[0];
         boolean sameY = i[1] == j[1] && j[1] == k[1] && k[1] == l[1];
@@ -130,7 +133,7 @@ public class Puzzle {
         boolean rightDown = countingRight && countingDown;
         boolean rightUp = countingRight && countingUp;
         boolean leftDown = countingLeft && countingDown;
-        boolean leftUp = countingLeft&& countingUp;
+        boolean leftUp = countingLeft && countingUp;
 
         return (sameY && countingLeft) || (sameY && countingRight)
             || (sameX && countingDown) || (sameX && countingUp)
@@ -211,6 +214,6 @@ public class Puzzle {
     }
 
     public static void main(String[] args) {
-        new Puzzle(25);
+        new Puzzle(15);
     }
 }
