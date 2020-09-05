@@ -6,17 +6,43 @@ import java.sql.Timestamp;
 import java.text.SimpleDateFormat;
 import java.util.*;
 
+/**
+ * This class is created in order to solve the
+ */
 public class Puzzle2 {
 
-    private int n;
+    private final int n;
     private int score;
     private long timeScoreFound;
+    private int cyclesRun;
+
+    /**
+     * The maximum amount of time to calculate a better matrix.
+     */
+    public static final int MAX_TIME = 10;
+
+    /**
+     * The tipping point, when an index is being kept or removed after a matrix has been finished processing.
+     */
+    public static final int TIPPING_POINT = 1;
+
+    /**
+     * The number of times that the program should cycle over the matrix, in order to extract the best used spots.
+     */
+    public static final int CYCLES = 20;
 
     private String fileName;
 
     private Integer[] fixedIndexes;
     private Integer[] currentMatrix;
     private Integer[] bestMatrix;
+
+    /**
+     * The indexes of the equations being saved for the best matrix.
+     * These are stored as two dimensional arrays.
+     */
+    private List<Integer[]> tempSavedEquations;
+    private List<Integer[]> savedEquations;
 
     /**
      * All 8 possible directions in a matrix.
@@ -37,20 +63,28 @@ public class Puzzle2 {
      * @param n The size of the matrix with n * n entries.
      */
     public Puzzle2(int n) {
+        // Set variables
         this.score = 0;
+        this.cyclesRun = 0;
         this.n = n;
+        this.savedEquations = new ArrayList<>();
+        this.tempSavedEquations = new ArrayList<>();
 
+        // Set the filename for this test. timestamp_n
         SimpleDateFormat sdf = new SimpleDateFormat("yyyyMMdd_HH-mm-ss");
         this.fileName = sdf.format(new Timestamp(System.currentTimeMillis())) + "_" + n;
 
+        // Initialize arrays
         fixedIndexes = new Integer[n * n];
         currentMatrix = new Integer[n * n];
 
+        // Add all possible values for this matrix (1 .. n * n)
         for (int i = 0; i < currentMatrix.length; i++) {
             currentMatrix[i] = i + 1;
         }
 
-        writeToFile(System.lineSeparator() + "Starting test for n = " + this.n + System.lineSeparator());
+
+//        writeToFile(System.lineSeparator() + "Starting test for n = " + this.n + System.lineSeparator());
     }
 
     public int getN() {
@@ -63,10 +97,6 @@ public class Puzzle2 {
 
     public Integer[] getBestMatrix() {
         return bestMatrix;
-    }
-
-    public void setN(int n) {
-        this.n = n;
     }
 
     /**
@@ -112,6 +142,9 @@ public class Puzzle2 {
         fixedIndexes[j] = b;
         fixedIndexes[k] = c;
         fixedIndexes[l] = d;
+
+        tempSavedEquations.add(new Integer[]{i, j, k, l});
+        //TODO: Save the equation, so you can find out which number(s) are used the moved. Then completely reshuffle.
     }
 
     /**
@@ -139,6 +172,8 @@ public class Puzzle2 {
             case UP:
                 if(!(startIndex < size * 3) && checkEquation(matrix[startIndex], matrix[startIndex - size],
                         matrix[startIndex - 2 * size], matrix[startIndex - 3 * size])) {
+
+                    // Save the indexes, since these are not allowed to be shuffled again.
                     fixIndexes(startIndex, startIndex - size, startIndex - 2 * size, startIndex - 3 * size,
                             matrix[startIndex], matrix[startIndex - size], matrix[startIndex - 2 * size],
                             matrix[startIndex - 3 * size]);
@@ -221,6 +256,7 @@ public class Puzzle2 {
      */
     public void checkMatrix() throws TimeoutException {
         this.fixedIndexes = new Integer[n * n];
+        this.tempSavedEquations = new ArrayList<>();
         int tempScore = 0;
 
         for(Direction direction: Direction.values()) {
@@ -234,9 +270,11 @@ public class Puzzle2 {
         if(this.score < tempScore) {
             this.score = tempScore;
             this.bestMatrix = currentMatrix;
+            this.savedEquations.clear();
+            this.savedEquations.addAll(this.tempSavedEquations);
 
+            //TODO: Could be removed in the future, for performance reasons.
             int nrOfFixedIndexes = 0;
-
             for (int i = 0; i < (n * n); i++) {
                 if(fixedIndexes[i] != null) {
                     nrOfFixedIndexes++;
@@ -246,20 +284,60 @@ public class Puzzle2 {
             // Store the time a solution was found.
             timeScoreFound = System.currentTimeMillis();
 
-            writeToFile("New score: " + this.score + "; Array: " + Arrays.toString(this.currentMatrix) + System.lineSeparator());
+//            writeToFile("New score: " + this.score + "; Array: " + Arrays.toString(this.currentMatrix) + System.lineSeparator());
             if(nrOfFixedIndexes == n * n) {
                 System.out.println("All indexes are fixed!");
-                throw new TimeoutException("All indexes are fixed!");
+                getBestNumbers(TIPPING_POINT);
+//                throw new TimeoutException("All indexes are fixed!");
             }
-            System.out.println("Only " + ((n * n) - nrOfFixedIndexes) + " indexes left to shuffle.");
         } else {
-            if(System.currentTimeMillis() - timeScoreFound > (1000 * 60)) {
-                System.out.println("[TIMEOUT] No new solutions found within 1 minute.");
-                throw new TimeoutException("No solutions found withing 1 minute. Loading next matrix series");
+            if(System.currentTimeMillis() - timeScoreFound > (1000 * MAX_TIME)) {
+//                System.out.println("[TIMEOUT] No new solutions found within " + MAX_TIME + " seconds.");
+                getBestNumbers(TIPPING_POINT);
+//                throw new TimeoutException("No solutions found withing " + MAX_TIME + " seconds. Loading next matrix series");
             }
         }
     }
 
+    /**
+     * Only preserves the numbers in the matrix which were used the most in the equations.
+     * @param tippingPoint The tipping point for keeping the index.
+     */
+    public void getBestNumbers(int tippingPoint) throws TimeoutException {
+        Integer[] count = new Integer[n * n];
+        this.fixedIndexes = new Integer[n * n];
+//        Arrays.fill(count, 0);
+//        for(Integer[] equation : this.savedEquations) {
+//            for(Integer number : equation) {
+//                count[number] += 1;
+//            }
+//        }
+
+        //TODO: Disabled for now, just let it run n cycles and enjoy...
+//        for (int i = 0; i < count.length; i++) {
+//            if(count[i] >= tippingPoint) {
+//                fixedIndexes[i] = bestMatrix[i];
+//            }
+//        }
+
+        this.cyclesRun++;
+
+//        System.out.println("Count cycle " + cyclesRun + " = " + Arrays.toString(count));
+        System.out.println("Score cycle " + cyclesRun + " = " + score + "\t" + Arrays.toString(bestMatrix));
+        if(cyclesRun < CYCLES) {
+            this.score = 0;
+            this.bestMatrix = new Integer[n * n];
+            this.timeScoreFound = System.currentTimeMillis();
+        } else {
+            throw new TimeoutException("");
+        }
+
+    }
+
+    /**
+     * Write a string to a file.
+     * @param message The message to write
+     */
     public void writeToFile(String message) {
         try {
             File file = new File("C:/Users/meule/IdeaProjects/ProDrive/results/" + this.fileName + ".txt");
@@ -273,8 +351,12 @@ public class Puzzle2 {
         }
     }
 
+    /**
+     * When executed, it will only calculate the score for one matrix.
+     * @param args
+     */
     public static void main(String[] args) {
-        Puzzle2 puzzle = new Puzzle2(5);
+        Puzzle2 puzzle = new Puzzle2(15);
         try {
             while(true) {
                 puzzle.shuffle();
